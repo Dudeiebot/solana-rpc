@@ -19,7 +19,7 @@ var (
 	recipientAddr string
 )
 
-type userInfo struct {
+type transferInfo struct {
 	senderKey     string
 	recipientAddr string
 	rpcClient     *rpc.Client
@@ -39,16 +39,14 @@ func main() {
 
 	rpcClient := rpc.New(os.Getenv("RPC_URL"))
 
-	amount := uint64(100000)
-
-	u := &userInfo{
+	t := &transferInfo{
 		senderKey:     os.Getenv("PRIVATE_KEY"),
 		recipientAddr: os.Getenv("PUBLIC_KEY"),
 		rpcClient:     rpcClient,
-		amount:        amount,
+		amount:        100000,
 	}
 
-	if err := sendAndConfirmTransaction(u); err != nil {
+	if err := sendAndConfirmTransaction(t); err != nil {
 		log.Fatalf("Error sending transaction: %v", err)
 	}
 	// out, err := client.RequestAirdrop(
@@ -63,23 +61,23 @@ func main() {
 	// fmt.Println("airdrop transaction signature:", out)
 }
 
-func sendAndConfirmTransaction(u *userInfo) error {
-	accountFrom, err := solana.PrivateKeyFromBase58(u.senderKey)
+func sendAndConfirmTransaction(t *transferInfo) error {
+	accountFrom, err := solana.PrivateKeyFromBase58(t.senderKey)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("public key:", accountFrom.PublicKey().String())
 
-	accountTo := solana.MustPublicKeyFromBase58(u.recipientAddr)
+	accountTo := solana.MustPublicKeyFromBase58(t.recipientAddr)
 
-	recent, err := u.rpcClient.GetRecentBlockhash(context.TODO(), rpc.CommitmentFinalized)
+	recent, err := t.rpcClient.GetRecentBlockhash(context.TODO(), rpc.CommitmentFinalized)
 	if err != nil {
 		panic(err)
 	}
 
 	tx, err := solana.NewTransaction(
 		[]solana.Instruction{
-			system.NewTransferInstruction(u.amount, accountFrom.PublicKey(), accountTo).
+			system.NewTransferInstruction(t.amount, accountFrom.PublicKey(), accountTo).
 				Build(),
 		},
 		recent.Value.Blockhash,
@@ -102,7 +100,7 @@ func sendAndConfirmTransaction(u *userInfo) error {
 	spew.Dump(tx)
 	tx.EncodeTree(text.NewTreeEncoder(os.Stdout, "Transfer Sol"))
 
-	sig, err := u.rpcClient.SendTransaction(context.Background(), tx)
+	sig, err := t.rpcClient.SendTransaction(context.Background(), tx)
 	if err != nil {
 		panic(fmt.Errorf("error sending transaction: %v", err))
 	}
