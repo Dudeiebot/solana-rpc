@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gagliardetto/solana-go"
@@ -30,35 +31,23 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Error loading .env file")
 	}
-	// Create a new account:
-	// account := solana.NewWallet()
-	// fmt.Println("account private key:", account.PrivateKey)
-	// fmt.Println("account public key:", account.PublicKey())
+	// rpcClient := rpc.New(os.Getenv("RPC_URL"))
+	rpcClient := rpc.New(rpc.DevNet_RPC)
 
-	// Create a new RPC client:
-
-	rpcClient := rpc.New(os.Getenv("RPC_URL"))
-
-	t := &transferInfo{
-		senderKey:     os.Getenv("PRIVATE_KEY"),
-		recipientAddr: os.Getenv("PUBLIC_KEY"),
-		rpcClient:     rpcClient,
-		amount:        100000,
+	if err := createAccount(100000, rpcClient); err != nil {
+		log.Fatalf("Error creating account %v", err)
 	}
 
-	if err := sendAndConfirmTransaction(t); err != nil {
-		log.Fatalf("Error sending transaction: %v", err)
-	}
-	// out, err := client.RequestAirdrop(
-	// 	context.TODO(),
-	// 	account.PublicKey(),
-	// 	solana.LAMPORTS_PER_SOL*1,
-	// 	rpc.CommitmentFinalized,
-	// )
-	// if err != nil {
-	// 	panic(err)
+	// t := &transferInfo{
+	// 	senderKey:     os.Getenv("PRIVATE_KEY"),
+	// 	recipientAddr: os.Getenv("PUBLIC_KEY"),
+	// 	rpcClient:     rpcClient,
+	// 	amount:        100000,
 	// }
-	// fmt.Println("airdrop transaction signature:", out)
+	//
+	// if err := sendAndConfirmTransaction(t); err != nil {
+	// 	log.Fatalf("Error sending transaction: %v", err)
+	// }
 }
 
 func sendAndConfirmTransaction(t *transferInfo) error {
@@ -106,5 +95,27 @@ func sendAndConfirmTransaction(t *transferInfo) error {
 	}
 
 	fmt.Printf("Transaction sent: %s\n", sig)
+	return nil
+}
+
+func createAccount(amount uint64, rpcClient *rpc.Client) error {
+	account := solana.NewWallet()
+	fmt.Println("account private key:", account.PrivateKey)
+	fmt.Println("account public key:", account.PublicKey())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	out, err := rpcClient.RequestAirdrop(
+		ctx,
+		account.PublicKey(),
+		amount,
+		rpc.CommitmentFinalized,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to request airdrop: %w", err)
+	}
+
+	fmt.Println("Airdrop transaction signature:", out)
 	return nil
 }
